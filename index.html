@@ -66,6 +66,14 @@ function login() {
       openPage(res.session);
     });
 }
+// 予約ページからのお願い：支払い画面を普段のブラウザで開く／ページを読み直す
+window.addEventListener('message', function (e) {
+  var d = e.data || {};
+  if (d.type === 'wit-open' && /^https:\/\/([a-z0-9-]+\.)?(square\.link|squareup\.com|square\.site)\//i.test(d.url || '')) {
+    try { liff.openWindow({ url: d.url, external: true }); } catch (err) { location.href = d.url; }
+  }
+  if (d === 'wit-reload') location.reload();
+});
 // 予約ページから「ログインし直して」と言われたら（記憶が切れていたとき）
 var retried = false;
 window.addEventListener('message', function (e) {
