@@ -66,3 +66,9 @@ function loadPage(query) {
 
 loadPage(location.search.replace(/^\?/, '')).catch(function () {
   document.querySelector('.spin').style.display = 'none';
+    document.getElementById('msg').innerHTML = 'うまく開けませんでした。<br><a href="' + GAS_URL + location.search + '">こちらから開いてください</a>';
+});
+window.addEventListener('message', function (e) { if (e.data === 'wit-reload') location.reload(); });
+</script>
+</body>
+</html>
