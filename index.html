@@ -48,16 +48,40 @@ function show(url) {
   f.addEventListener('load', function () { document.getElementById('wrap').style.display = 'none'; });
 }
 
-liff.init({ liffId: LIFF_ID }).then(function () {
-  if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+// 一度ログインしたら、5時間は同じスマホでログインの確認を省く（開くのを速くするため）
+var KEY = 'wit_ls';
+function saved() {
+  try { var v = JSON.parse(localStorage.getItem(KEY) || 'null'); return v && v.exp > Date.now() ? v.s : ''; } catch (e) { return ''; }
+}
+function save(sess) { try { localStorage.setItem(KEY, JSON.stringify({ s: sess, exp: Date.now() + 5 * 3600e3 })); } catch (e) {} }
+function openPage(sess) { show(GAS_URL + '?ls=' + encodeURIComponent(sess) + (page() === 'mine' ? '&p=mine' : '')); }
+function login() {
   var token = liff.getIDToken();
   if (!token) { liff.login({ redirectUri: location.href }); return; }
   return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'login', idToken: token }) })
     .then(function (r) { return r.json(); })
     .then(function (res) {
       if (!res || !res.ok) { fallback('LINEのログインを確認できませんでした。'); return; }
-      show(GAS_URL + '?ls=' + encodeURIComponent(res.session) + (page() === 'mine' ? '&p=mine' : ''));
+      save(res.session);
+      openPage(res.session);
     });
+}
+// 予約ページから「ログインし直して」と言われたら（記憶が切れていたとき）
+var retried = false;
+window.addEventListener('message', function (e) {
+  if (e.data !== 'wit-relogin' || retried) return;
+  retried = true;
+  try { localStorage.removeItem(KEY); } catch (err) {}
+  var f = document.querySelector('iframe'); if (f) f.parentNode.removeChild(f);
+  document.getElementById('wrap').style.display = '';
+  login();
+});
+
+liff.init({ liffId: LIFF_ID }).then(function () {
+  if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+  var s = saved();
+  if (s) { openPage(s); return; }
+  return login();
 }).catch(function () {
   fallback('うまく開けませんでした。');
 });
