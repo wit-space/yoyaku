@@ -10,35 +10,20 @@
   #wrap .logo { display:inline-block; color:#8a5a3c; font-weight:800; font-size:22px; border:2px solid #8fcbe6; border-radius:10px; padding:2px 12px; background:#fff; }
   #wrap .spin { width:36px; height:36px; margin:28px auto 12px; border:4px solid #d9eef8; border-top-color:#1f2d5a; border-radius:50%; animation:r 1s linear infinite; }
   @keyframes r { to { transform:rotate(360deg); } }
-  #wrap a.btn { display:block; margin-top:20px; background:#1f2d5a; color:#fff; border-radius:14px; padding:14px; font-weight:800; text-decoration:none; }
-  #wrap .err { color:#d0564b; }
 </style>
 </head>
 <body>
 <div class="wrap" id="wrap">
   <span class="logo">wit.</span>
-  <div class="spin" id="spin"></div>
+  <div class="spin"></div>
   <p id="msg">読み込み中です…</p>
 </div>
 <div id="page"></div>
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 // ▼ ここだけ書き換えてください：予約ページのURL（「設定」シートの予約ページURL・/exec で終わるもの）
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbwZLzXJiH1w4DNGMSxVDWAyw-tThcHSZHNekVnXuSric2L1J0luhr0ZZ0EHAriT8bD7/exec';
 // ▲
-var LIFF_ID = '2012304980-Vytfjw2H';
-
-function page() { return new URLSearchParams(location.search).get('p') === 'mine' ? 'mine' : ''; }
-function fallback(text) {
-  document.getElementById('spin').style.display = 'none';
-  var m = document.getElementById('msg');
-  m.innerHTML = '<span class="err">' + text + '</span>';
-  var a = document.createElement('a');
-  a.className = 'btn';
-  a.href = GAS_URL + (page() === 'mine' ? '?p=mine' : '');
-  a.textContent = 'ブラウザで予約ページを開く';
-  m.parentNode.appendChild(a);
-}
+// LINEを使わない方の入口
 // ===== 予約ページをGoogleから文字で受け取り、このページに表示する =====
 // （Googleのログイン状態に関係なく開けるように。Googleのクッキーは送らない）
 function callGas(fn, args) {
@@ -79,54 +64,5 @@ function loadPage(query) {
     });
 }
 
-// 一度ログインしたら、5時間は同じスマホでログインの確認を省く（開くのを速くするため）
-var KEY = 'wit_ls';
-function saved() {
-  try { var v = JSON.parse(localStorage.getItem(KEY) || 'null'); return v && v.exp > Date.now() ? v.s : ''; } catch (e) { return ''; }
-}
-function save(sess) { try { localStorage.setItem(KEY, JSON.stringify({ s: sess, exp: Date.now() + 5 * 3600e3 })); } catch (e) {} }
-function openPage(sess) {
-  return loadPage('ls=' + encodeURIComponent(sess) + (page() === 'mine' ? '&p=mine' : ''))
-    .catch(function () { fallback('うまく開けませんでした。'); });
-}
-function login() {
-  var token = liff.getIDToken();
-  if (!token) { liff.login({ redirectUri: location.href }); return; }
-  return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'login', idToken: token }) })
-    .then(function (r) { return r.json(); })
-    .then(function (res) {
-      if (!res || !res.ok) { fallback('LINEのログインを確認できませんでした。'); return; }
-      save(res.session);
-      return openPage(res.session);
-    });
-}
-// 予約ページからのお願い（同じページの中から届く）：支払い画面を普段のブラウザで開く／ページを読み直す
-window.addEventListener('message', function (e) {
-  var d = e.data || {};
-  if (d.type === 'wit-open' && /^https:\/\/([a-z0-9-]+\.)?(square\.link|squareup\.com|square\.site)\//i.test(d.url || '')) {
-    try { liff.openWindow({ url: d.url, external: true }); } catch (err) { location.href = d.url; }
-  }
-  if (d === 'wit-reload') location.reload();
-});
-// 予約ページから「ログインし直して」と言われたら（記憶が切れていたとき）
-var retried = false;
-window.addEventListener('message', function (e) {
-  if (e.data !== 'wit-relogin' || retried) return;
-  retried = true;
-  try { localStorage.removeItem(KEY); } catch (err) {}
-  document.getElementById('page').innerHTML = '';
-  document.getElementById('wrap').style.display = '';
-  login();
-});
-
-liff.init({ liffId: LIFF_ID }).then(function () {
-  if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
-  var s = saved();
-  if (s) { openPage(s); return; }
-  return login();
-}).catch(function () {
-  fallback('うまく開けませんでした。');
-});
-</script>
-</body>
-</html>
+loadPage(location.search.replace(/^\?/, '')).catch(function () {
+  document.querySelector('.spin').style.display = 'none';
